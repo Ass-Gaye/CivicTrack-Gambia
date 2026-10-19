@@ -1,0 +1,31 @@
+{
+  "name": "civictrack-gambia",
+  "private": true,
+  "version": "1.0.0",
+  "description": "CivicTrack Gambia — civic reporting and public-complaint tracking platform (hackathon MVP)",
+  "scripts": {
+    "setup": "npm install && npm run db:setup",
+    "db:setup": "cd apps/api && npx prisma generate && npx prisma migrate deploy && npx prisma db seed",
+    "db:seed": "cd apps/api && npx prisma db seed",
+    "db:studio": "cd apps/api && npx prisma studio",
+    "dev": "concurrently -n \"api,web\" -c \"blue,green\" \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "cd apps/api && npm run dev",
+    "dev:web": "cd apps/web && npm run dev",
+    "build:api": "cd apps/api && npm run build",
+    "build:web": "cd apps/web && npm run build",
+    "start:api": "cd apps/api && npm start",
+    "test": "cd apps/api && npm test",
+    "typecheck:api": "cd apps/api && npx tsc --noEmit",
+    "typecheck:web": "cd apps/web && npx tsc --noEmit"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "playwright": "^1.64.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,56 @@
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+build
+*.tsbuildinfo
+
+# Environment variables (may contain local secrets)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary dev scripts
+start-api.bat
+startfg.bat
+dev.bat
+start-web.bat
+
+# Local PostgreSQL data directory (self-managed dev instance)
+.pgdata
+
+# Verification scratch files
+verify.sql
+verify-prisma.mjs
+test-*.json
+cookies.txt
+
+# OpenCode / agent session config (not part of the project)
+.agents
+.gemini
+opencode.json
+skills-lock.json
+qc
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local PostgreSQL data directory (self-managed dev instance)
+.pgdata
+
+# IDE
+.idea
+.vscode/*.code-workspace
+*.code-workspace

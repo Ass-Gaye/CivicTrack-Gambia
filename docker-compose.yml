@@ -1,0 +1,23 @@
+# CivicTrack Gambia — local PostgreSQL via Docker Compose.
+# NOTE: Docker is not available in this environment, so PostgreSQL was
+# installed directly (PostgreSQL 18, running on localhost:5432).
+# This file is kept so the stack can be run with Docker elsewhere.
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: civictrack-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: civictrack
+      POSTGRES_PASSWORD: civictrack_dev_password
+      POSTGRES_DB: civictrack_gambia
+    volumes:
+      - civictrack_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U civictrack -d civictrack_gambia"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+volumes:
+  civictrack_pgdata:

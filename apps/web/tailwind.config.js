@@ -1,0 +1,115 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        // Gambian River Marine (Primary authoritative brand)
+        river: {
+          50: "#F0F5FA",
+          100: "#E1ECF5",
+          200: "#C4DAEB",
+          300: "#97C0DE",
+          400: "#64A0CE",
+          500: "#3D82BF",
+          600: "#2768A5",
+          700: "#1E5285",
+          800: "#18446D",
+          900: "#0D253E",
+          950: "#081626",
+        },
+        // Laterite Earth / Ochre (Warm Gambian sun & alert accents)
+        ochre: {
+          50: "#FCF6F2",
+          100: "#F9ECE3",
+          200: "#F3D7C5",
+          300: "#EAB99E",
+          400: "#DF936F",
+          500: "#D36E42",
+          600: "#BE5227",
+          700: "#9C3E1B",
+          800: "#7F341A",
+          900: "#682D19",
+        },
+        // Mangrove Canopy (Verified & active civic resolution)
+        canopy: {
+          50: "#F1F8F4",
+          100: "#DEEFE4",
+          200: "#BFDFC9",
+          300: "#95C8A6",
+          400: "#64AA7E",
+          500: "#408E5D",
+          600: "#2B7347",
+          700: "#235B3A",
+          800: "#1F4931",
+          900: "#1B3D2A",
+        },
+        // Warm Sand Canvas & Ink
+        sand: {
+          50: "#FAF8F5",
+          100: "#F4F0E8",
+          200: "#E8E2D5",
+          300: "#D6CCBC",
+          400: "#BAAD99",
+          500: "#9E8F7A",
+          600: "#7E715E",
+          700: "#5D5344",
+          800: "#3E372D",
+          900: "#221D17",
+          950: "#13100C",
+        },
+        // Direct aliases for existing codebase classes (all steps now fully defined!)
+        navy: {
+          50: "#F0F5FA",
+          100: "#E1ECF5",
+          200: "#C4DAEB",
+          300: "#97C0DE",
+          400: "#64A0CE",
+          500: "#3D82BF",
+          600: "#2768A5",
+          700: "#1E5285",
+          800: "#18446D",
+          900: "#0D253E",
+          950: "#081626",
+        },
+        green: {
+          50: "#F1F8F4",
+          100: "#DEEFE4",
+          200: "#BFDFC9",
+          300: "#95C8A6",
+          400: "#64AA7E",
+          500: "#408E5D",
+          600: "#2B7347",
+          700: "#235B3A",
+          800: "#1F4931",
+          900: "#1B3D2A",
+        },
+        gambia: {
+          red: "#CE1126",
+          blue: "#0C1C8C",
+          green: "#3A7728",
+        },
+      },
+      fontFamily: {
+        sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+      },
+      borderRadius: {
+        'lg': '0.75rem',
+        'xl': '1rem',
+        '2xl': '1.25rem',
+        '3xl': '1.75rem',
+      },
+      boxShadow: {
+        'subtle': '0 1px 2px 0 rgba(13, 37, 62, 0.04)',
+        'card': '0 2px 8px -2px rgba(13, 37, 62, 0.06), 0 1px 3px 0 rgba(13, 37, 62, 0.03)',
+        'hover': '0 8px 24px -4px rgba(13, 37, 62, 0.08), 0 2px 6px -1px rgba(13, 37, 62, 0.04)',
+        'elevated': '0 16px 36px -6px rgba(13, 37, 62, 0.12), 0 4px 12px -2px rgba(13, 37, 62, 0.04)',
+      },
+    },
+  },
+  plugins: [],
+}

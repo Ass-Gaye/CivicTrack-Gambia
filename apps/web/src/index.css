@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  
+  body {
+    background-color: #FAF8F5;
+    color: #221D17;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: #E1ECF5;
+    color: #0D253E;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+}
+
+@layer components {
+  /* Authentic Gambian national tricolor ribbon banner */
+  .gambia-ribbon {
+    background: linear-gradient(
+      to bottom,
+      #CE1126 0%,
+      #CE1126 36%,
+      #FFFFFF 36%,
+      #FFFFFF 42%,
+      #0C1C8C 42%,
+      #0C1C8C 58%,
+      #FFFFFF 58%,
+      #FFFFFF 64%,
+      #3A7728 64%,
+      #3A7728 100%
+    );
+  }
+
+  .gambia-ribbon-horizontal {
+    background: linear-gradient(
+      to right,
+      #CE1126 0%,
+      #CE1126 36%,
+      #FFFFFF 36%,
+      #FFFFFF 42%,
+      #0C1C8C 42%,
+      #0C1C8C 58%,
+      #FFFFFF 58%,
+      #FFFFFF 64%,
+      #3A7728 64%,
+      #3A7728 100%
+    );
+  }
+}
+
+@layer utilities {
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

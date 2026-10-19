@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ReportCategory {
+  BLOCKED_DRAIN
+  WASTE_DISPOSAL
+  DAMAGED_ROAD
+  STREETLIGHT
+  DAMAGED_FACILITY
+  OTHER
+}
+
+enum ReportStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  ASSIGNED
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+}
+
+enum OfficerRole {
+  ADMIN
+  OFFICER
+}
+
+model Officer {
+  id          String        @id @default(uuid())
+  name        String
+  email       String        @unique
+  passwordHash String
+  role        OfficerRole   @default(OFFICER)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  statusUpdates ReportStatusUpdate[]
+
+  @@index([email])
+}
+
+model Report {
+  id            String          @id @default(uuid())
+  referenceCode String          @unique
+  title         String
+  description   String
+  category      ReportCategory
+  location      String
+  latitude      Float?
+  longitude     Float?
+  contactName   String?
+  contactPhone  String?
+  contactEmail  String?
+  status        ReportStatus    @default(SUBMITTED)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  updates       ReportStatusUpdate[]
+
+  @@index([referenceCode])
+  @@index([status])
+  @@index([category])
+  @@index([createdAt])
+}
+
+model ReportStatusUpdate {
+  id            String          @id @default(uuid())
+  reportId      String
+  report        Report          @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  previousStatus ReportStatus?
+  newStatus     ReportStatus
+  publicNote    String?
+  createdAt     DateTime        @default(now())
+  officerId     String?
+  officer       Officer?        @relation(fields: [officerId], references: [id])
+
+  @@index([reportId])
+  @@index([createdAt])
+}

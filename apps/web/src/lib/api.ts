@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 
 /**
  * Centralized API client. All frontend API calls go through this instance so

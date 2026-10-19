@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "framework": "vite",
+  "buildCommand": "cd apps/web && npm install && npm run build",
+  "installCommand": "cd apps/web && npm install",
+  "outputDirectory": "apps/web/dist",
+
+  "rewrites": [
+    // Same-origin proxy: browser calls /api/* on the Vercel domain (first-party),
+    // Vercel forwards to the Render API. Keeps HttpOnly cookies working because
+    // the cookie is set relative to the Vercel origin.
+    { "source": "/api/:path*", "destination": "${RENDER_API_URL}/api/:path*" },
+
+    // React Router SPA fallback: every non-API route serves index.html.
+    // Existing static assets in /dist are served directly before this rewrite.
+    { "source": "/:path*", "destination": "/index.html" }
+  ]
+}

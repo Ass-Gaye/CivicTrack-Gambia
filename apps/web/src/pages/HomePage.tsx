@@ -358,7 +358,7 @@ export function HomePage() {
       </main>
 
       {/* Authoritative Civic Footer */}
-      <footer className="border-t border-sand-200/40 bg-sand-950/90 text-sand-300 py-12 px-4 sm:px-6 lg:px-8 backdrop-blur-sm">
+      <footer className="border-t border-sand-200 bg-sand-950 text-sand-300 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto grid sm:grid-cols-2 md:grid-cols-4 gap-8 mb-10">
           <div>
             <div className="flex items-center gap-2 mb-3">
@@ -423,7 +423,7 @@ export function HomePage() {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto pt-6 border-t border-sand-800 bg-sand-950/95 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-sand-400 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto pt-6 border-t border-sand-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-sand-500">
           <span>CivicTrack Gambia — Open Public Technology Initiative</span>
           <span>Prototype v1.0 • Built with React, Tailwind & PostgreSQL</span>
         </div>

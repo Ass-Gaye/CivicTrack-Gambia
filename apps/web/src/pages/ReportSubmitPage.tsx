@@ -18,7 +18,7 @@ import {
   Building2,
   Wrench,
   FileText,
-  AlertTriangle,
+  AlertCircle,
 } from 'lucide-react'
 import { Navbar } from '@/components/Navbar'
 import { Button } from '@/components/Button'
@@ -275,7 +275,7 @@ export function ReportSubmitPage() {
 
               {/* Delivery outcome banner */}
               {submitted.emailSent ? (
-                <div className="w-full rounded-xl bg-canopy-50 border border-canopy-200 p-4 mb-8 text-left flex items-start gap-3">
+                <div className="w-full rounded-xl bg-canopy-50 border border-canopy-200 p-4 mb-6 text-left flex items-start gap-3">
                   <CheckCircle2 className="w-4 h-4 text-canopy-600 mt-0.5 flex-shrink-0" />
                   <div className="text-sm text-sand-700 leading-relaxed">
                     <strong className="text-sand-900">Confirmation email sent.</strong> A confirmation email with your
@@ -283,18 +283,19 @@ export function ReportSubmitPage() {
                   </div>
                 </div>
               ) : (
-                <div className="w-full rounded-xl bg-ochre-50 border border-ochre-200 p-4 mb-8 text-left flex items-start gap-3">
-                  <AlertTriangle className="w-4 h-4 text-ochre-600 mt-0.5 flex-shrink-0" />
+                <div className="w-full rounded-xl bg-red-50 border border-red-200 p-4 mb-6 text-left flex items-start gap-3">
+                  <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
                   <div className="text-sm text-sand-700 leading-relaxed">
                     <strong className="text-sand-900">Confirmation email could not be sent.</strong> Your report was
-                    still submitted and saved. Save your tracking code above — you will need it to track your report.
+                    still submitted and saved. Your tracking code is shown below — save it, as you will need it to
+                    track your report.
                   </div>
                 </div>
               )}
 
               {/* Image Upload Status */}
               {imageSelected && (
-                <div className="w-full rounded-xl bg-canopy-50 border border-canopy-200 p-4 mb-8 text-left flex items-start gap-3">
+                <div className="w-full rounded-xl bg-canopy-50 border border-canopy-200 p-4 mb-6 text-left flex items-start gap-3">
                   {submitted.imageSent ? (
                     <>
                       <CheckCircle2 className="w-4 h-4 text-canopy-600 mt-0.5 flex-shrink-0" />
@@ -305,10 +306,10 @@ export function ReportSubmitPage() {
                     </>
                   ) : (
                     <>
-                      <AlertTriangle className="w-4 h-4 text-ochre-600 mt-0.5 flex-shrink-0" />
+                      <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
                       <div className="text-sm text-sand-700 leading-relaxed">
                         <strong className="text-sand-900">Photo upload failed.</strong> Your report was still submitted
-                        without a photo. You can try uploading again later.
+                        without a photo. You can try uploading again later using the Track page or by submitting again.
                       </div>
                     </>
                   )}

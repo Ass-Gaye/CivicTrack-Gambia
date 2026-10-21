@@ -11,6 +11,7 @@ import {
 } from '../services/report.service'
 import { CATEGORY_LABELS } from '../schemas/report'
 import { sendConfirmationEmail } from '../services/email.service'
+import { uploadImage, getCloudinary } from '../services/cloudinary.service'
 import { AuthenticatedRequest } from '../middleware/auth'
 
 /**
@@ -25,11 +26,32 @@ function buildTrackingUrl(referenceCode: string): string {
 
 export async function submitReport(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    // 1. Persist the report first. The response always reflects the saved report.
-    const data = req.body as Parameters<typeof createReport>[0]
-    const report = await createReport(data)
+    // 1. Validate and upload image (if provided) to Cloudinary first.
+    //    Image upload failure does not block report submission — we capture
+    //    the error and continue without an image.
+    let imageUrl: string | null = null
+    let imageKey: string | null = null
 
-    // 2. Attempt confirmation email delivery. Any failure is captured and
+    if (req.file) {
+      try {
+        const uploadResult = await uploadImage(req.file)
+        imageUrl = uploadResult.url
+        imageKey = uploadResult.publicId
+      } catch {
+        // Image upload failed — continue without image.
+        // The report will still be saved.
+      }
+    }
+
+    // 2. Persist the report (with image info if available).
+    const data = req.body as Parameters<typeof createReport>[0]
+    const report = await createReport({
+      ...data,
+      imageUrl,
+      imageKey,
+    })
+
+    // 3. Attempt confirmation email delivery. Any failure is captured and
     //    reported as emailSent: false — it never deletes the report, never
     //    creates a duplicate, and never turns a saved report into a failure.
     const trackingUrl = buildTrackingUrl(report.referenceCode)
@@ -49,6 +71,7 @@ export async function submitReport(req: Request, res: Response, next: NextFuncti
       data: {
         referenceCode: report.referenceCode,
         status: report.status,
+        imageSent: Boolean(imageUrl),
         emailSent,
         message: emailSent
           ? 'Report submitted successfully. A confirmation email has been sent to your inbox.'

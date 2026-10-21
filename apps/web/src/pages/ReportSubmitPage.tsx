@@ -69,6 +69,7 @@ const formSchema = z
       .toLowerCase()
       .email('Enter a valid email address')
       .max(150, 'Email address must be at most 150 characters'),
+    image: z.any().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.locationId === 'OTHER') {
@@ -92,10 +93,12 @@ export function ReportSubmitPage() {
   const [submitted, setSubmitted] = useState<{
     referenceCode: string
     emailSent: boolean
+    imageSent: boolean
   } | null>(null)
   const [copied, setCopied] = useState(false)
   const [locating, setLocating] = useState(false)
   const [geoNotice, setGeoNotice] = useState<string | null>(null)
+  const [imageSelected, setImageSelected] = useState(false)
 
   const [lgas, setLgas] = useState<LocalGovernmentArea[]>(OFFICIAL_LGAS)
   const [locations, setLocations] = useState<LocationItem[]>([])
@@ -117,6 +120,7 @@ export function ReportSubmitPage() {
       contactName: '',
       contactPhone: '',
       contactEmail: '',
+      image: null,
     },
   })
 
@@ -227,8 +231,13 @@ export function ReportSubmitPage() {
         contactName: values.contactName || null,
         contactPhone: values.contactPhone || null,
         contactEmail: values.contactEmail,
+        image: values.image,
       })
-      setSubmitted({ referenceCode: result.referenceCode, emailSent: result.emailSent })
+      setSubmitted({
+        referenceCode: result.referenceCode,
+        emailSent: result.emailSent,
+        imageSent: result.imageSent,
+      })
     } catch {
       // error handled by hook
     }
@@ -280,6 +289,29 @@ export function ReportSubmitPage() {
                     <strong className="text-sand-900">Confirmation email could not be sent.</strong> Your report was
                     still submitted and saved. Save your tracking code above — you will need it to track your report.
                   </div>
+                </div>
+              )}
+
+              {/* Image Upload Status */}
+              {imageSelected && (
+                <div className="w-full rounded-xl bg-canopy-50 border border-canopy-200 p-4 mb-8 text-left flex items-start gap-3">
+                  {submitted.imageSent ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 text-canopy-600 mt-0.5 flex-shrink-0" />
+                      <div className="text-sm text-sand-700 leading-relaxed">
+                        <strong className="text-sand-900">Photo uploaded.</strong> Your photo has been attached to your
+                        report and is visible to municipal officers.
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle className="w-4 h-4 text-ochre-600 mt-0.5 flex-shrink-0" />
+                      <div className="text-sm text-sand-700 leading-relaxed">
+                        <strong className="text-sand-900">Photo upload failed.</strong> Your report was still submitted
+                        without a photo. You can try uploading again later.
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -347,6 +379,7 @@ export function ReportSubmitPage() {
                   className="w-full"
                   onClick={() => {
                     setSubmitted(null)
+                    setImageSelected(false)
                     methods.reset()
                   }}
                 >
@@ -577,6 +610,32 @@ export function ReportSubmitPage() {
                     {geoNotice}
                   </p>
                 )}
+              </div>
+
+              {/* Image Upload */}
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-sand-800 mb-1.5">
+                  Photo of the Issue (Optional)
+                </label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null
+                    methods.setValue('image', file, { shouldValidate: false })
+                    setImageSelected(Boolean(file))
+                  }}
+                  className="block w-full text-sm text-sand-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-river-50 file:text-river-700 hover:file:bg-river-100"
+                />
+                {methods.formState.errors.image && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    Invalid image file
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-sand-500">
+                  Optional photo of the issue (JPEG, PNG, WebP, max 5 MB). Photos are
+                  visible to municipal officers only — not on the public tracking page.
+                </p>
               </div>
             </Card>
 

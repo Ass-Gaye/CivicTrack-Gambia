@@ -8,6 +8,7 @@ import {
   User,
   Phone,
   Mail,
+  Image,
   CheckCircle2,
   AlertCircle,
   Clock,
@@ -234,6 +235,29 @@ export function OfficerReportDetailPage() {
                     </span>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Citizen Photo (Officers Only) */}
+          {report.imageUrl && (
+            <div className="mt-4 pt-4 border-t border-sand-200">
+              <div className="flex items-center gap-2 mb-3">
+                <Image className="w-4 h-4 text-canopy-600" />
+                <span className="text-xs font-bold uppercase tracking-wider text-canopy-800">
+                  Citizen Photo (Municipal Staff Only)
+                </span>
+              </div>
+              <div className="rounded-xl bg-white border border-sand-200 overflow-hidden">
+                <img
+                  src={report.imageUrl}
+                  alt="Citizen-submitted photo of the issue"
+                  className="w-full h-auto max-h-64 object-cover cursor-pointer"
+                  onClick={() => window.open(report.imageUrl, '_blank')}
+                />
+                <p className="text-xs text-sand-500 text-center mt-2 px-4">
+                  Click to open full-resolution image
+                </p>
               </div>
             </div>
           )}

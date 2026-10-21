@@ -51,6 +51,7 @@ export interface OfficerReport {
   lga?: string | null
   lgaName?: string | null
   locationId?: string | null
+  imageUrl?: string | null
   status: ReportStatus
   statusLabel: string
   createdAt: string

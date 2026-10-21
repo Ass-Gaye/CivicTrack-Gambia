@@ -57,6 +57,8 @@ export async function createReport(data: {
   contactName?: string | null
   contactPhone?: string | null
   contactEmail: string
+  imageUrl?: string | null
+  imageKey?: string | null
 }) {
   let lastError: Error | null = null
 
@@ -91,8 +93,17 @@ export async function createReport(data: {
           contactName: data.contactName ?? null,
           contactPhone: data.contactPhone ?? null,
           contactEmail: data.contactEmail ?? null,
+          imageUrl: data.imageUrl ?? null,
+          imageKey: data.imageKey ?? null,
         },
-        select: { referenceCode: true, status: true, createdAt: true, location: true, lga: true },
+        select: {
+          referenceCode: true,
+          status: true,
+          createdAt: true,
+          location: true,
+          lga: true,
+          imageUrl: true,
+        },
       })
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -187,6 +198,7 @@ export interface OfficerReport {
   lga: string | null
   lgaName: string | null
   locationId: string | null
+  imageUrl: string | null
   status: string
   statusLabel: string
   createdAt: string
@@ -251,6 +263,7 @@ export async function getOfficerReports({
         streetNumber: true,
         lga: true,
         locationId: true,
+        imageUrl: true,
         status: true,
         createdAt: true,
         updatedAt: true,
@@ -281,6 +294,7 @@ export async function getOfficerReports({
         lga: r.lga,
         lgaName: lgaInfo?.name ?? r.lga,
         locationId: r.locationId,
+        imageUrl: r.imageUrl,
         status: r.status,
         statusLabel: STATUS_LABELS[r.status as keyof typeof STATUS_LABELS] ?? r.status,
         createdAt: r.createdAt.toISOString(),
@@ -308,6 +322,8 @@ export async function getOfficerReportDetail(id: string) {
       streetNumber: true,
       lga: true,
       locationId: true,
+      imageUrl: true,
+      imageKey: true,
       latitude: true,
       longitude: true,
       contactName: true,

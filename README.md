@@ -18,6 +18,7 @@ CivicTrack Gambia is a mobile-first civic reporting and public-complaint trackin
 | Auth | JWT in HttpOnly, SameSite=Strict cookie; bcryptjs password hashing |
 | Rate limiting | express-rate-limit |
 | Email delivery | Resend (official SDK), server-side only |
+| Image uploads | Cloudinary (official SDK), server-side only |
 | Testing | Vitest + Supertest |
 
 ## Project structure
@@ -68,6 +69,10 @@ DEMO_OFFICER_EMAIL=officer@civictrack.gm
 DEMO_OFFICER_PASSWORD=DemoOfficerPass123!
 RESEND_API_KEY=re_your_resend_api_key
 EMAIL_FROM="CivicTrack Gambia <onboarding@resend.dev>"
+FRONTEND_URL=http://localhost:5173
+CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+CLOUDINARY_API_KEY=your_cloudinary_api_key
+CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 ```
 
 `apps/web/.env` is not required — `VITE_API_URL` defaults to `http://localhost:4000` and the Vite dev server proxies `/api` to the backend.
@@ -83,6 +88,16 @@ Confirmation emails are sent through [Resend](https://resend.com). All email con
 See `.env.example` for placeholders. Real secrets must never be committed; `.env` files are gitignored.
 
 > Secrets are never committed. `.env` is gitignored. Only `.env.example` is tracked.
+
+### Image upload configuration
+
+Image uploads use [Cloudinary](https://cloudinary.com). All configuration lives in `apps/api/.env` (server-side only) and is **never** exposed to the Vite frontend:
+
+- `CLOUDINARY_CLOUD_NAME` — your Cloudinary cloud name (create one at https://cloudinary.com).
+- `CLOUDINARY_API_KEY` — your Cloudinary API key.
+- `CLOUDINARY_API_SECRET` — your Cloudinary API secret.
+
+Citizens can optionally attach one photo (JPEG, PNG, WebP, max 5 MB) when submitting a report. The photo is stored on Cloudinary and is visible **only to authorized officers** in the report detail view — it is never exposed on the public tracking page.
 
 ## Installation
 
@@ -148,7 +163,7 @@ Open `http://localhost:5173/`.
 
 ```bash
 cd apps/api
-npm test             # vitest run — 12 tests, all passing
+npm test             # vitest run — 41 tests, all passing
 ```
 
 Tests verify:
@@ -158,12 +173,37 @@ Tests verify:
 4. Reference codes are unique across submissions
 5. Reports are retrievable by reference code
 6. Invalid references return a safe 404 (no DB internals leaked)
-7. Public tracking excludes contact details
-8. Unauthenticated status updates are rejected (401)
-9. Authenticated officers can update reports
-10. Status changes create history records
-11. Latest status appears in tracking responses
-12. Dashboard counts reflect database records
+7. Public tracking excludes contact details and image URLs
+8. Public tracking excludes image URL when image exists
+9. Unauthenticated status updates are rejected (401)
+10. Authenticated officers can update reports
+11. Status changes create history records
+12. Latest status appears in tracking responses
+13. Dashboard counts reflect database records
+14. Report submission sends confirmation email and returns reference code
+15. Report submission keeps report when email provider fails
+16. Missing or invalid email is rejected
+17. Report resend confirmation works for existing reports
+18. Resend endpoint returns 404 for unknown reference and 400 when no email on file
+19. Resend endpoint is rate-limited
+20. Email HTML is escaped for user-supplied fields
+21. Email includes reference code, complaint summary, and tracking link
+22. Email contains no passwords, tokens, or secrets
+23. All eight LGAs are returned with accurate names and official distinctions
+24. Dataset metadata includes open licenses and source attributions
+25. Locations are filtered by LGA and return verified entries for all 8 LGAs
+26. Location search works within an LGA
+27. Unknown LGA returns 404
+28. Single location fetch returns parent LGA metadata
+29. Reports can be created for each of the eight LGAs with verified locations
+30. Cross-LGA submissions are rejected
+31. Other / Not listed workflow works with custom location text
+32. Other / Not listed with missing custom text is rejected
+33. Invalid or fabricated LGA names are rejected
+34. Image upload stores image URL and returns imageSent: true
+35. Report submission without image returns imageSent: false
+36. Invalid file type is rejected
+37. Report is kept when email provider fails
 
 ## Demo officer setup
 
@@ -180,8 +220,8 @@ The seed script upserts this officer. Sign in at `/officer/login`, then access `
 
 Public endpoints:
 - `GET /api/health` — health check
-- `POST /api/reports` — submit a report (rate-limited: 20/15min per IP). Returns `{ referenceCode, status, emailSent, message }`. The report is persisted before the confirmation email is attempted; if email delivery fails the report is still saved and `emailSent` is `false`.
-- `GET /api/reports/track/:reference` — public tracking (rate-limited: 30/15min per IP). Returns public report + timeline, no contact/officer info. Citizen email is never exposed.
+- `POST /api/reports` — submit a report (rate-limited: 20/15min per IP). Accepts `multipart/form-data` with report fields plus an optional `image` file (JPEG/PNG/WebP, max 5 MB). Returns `{ referenceCode, status, emailSent, imageSent, message }`. The report is persisted before the confirmation email is attempted; if email delivery fails the report is still saved and `emailSent` is `false`. If image upload fails, the report is still saved and `imageSent` is `false`.
+- `GET /api/reports/track/:reference` — public tracking (rate-limited: 30/15min per IP). Returns public report + timeline, no contact/officer info, no image URL. Citizen email and images are never exposed.
 - `POST /api/reports/track/:reference/resend-confirmation` — re-send the confirmation email to the address already on file (rate-limited: 3/15min per IP). Citizens cannot choose the recipient.
 - `GET /api/reports/categories` — list issue categories
 
@@ -190,8 +230,8 @@ Officer endpoints (all require authenticated session via HttpOnly cookie):
 - `POST /api/auth/logout`
 - `GET /api/auth/me` — current session
 - `GET /api/officer/dashboard` — summary counts
-- `GET /api/officer/reports` — paginated, searchable, filterable report list
-- `GET /api/officer/reports/:id` — report detail (officer view, includes contact info)
+- `GET /api/officer/reports` — paginated, searchable, filterable report list (includes imageUrl)
+- `GET /api/officer/reports/:id` — report detail (officer view, includes contact info and image URL)
 - `PATCH /api/officer/reports/:id/status` — change status + public note (creates status history)
 
 Statuses: SUBMITTED, UNDER_REVIEW, ASSIGNED, IN_PROGRESS, RESOLVED, REJECTED (shown with readable labels).
@@ -222,7 +262,7 @@ Statuses: SUBMITTED, UNDER_REVIEW, ASSIGNED, IN_PROGRESS, RESOLVED, REJECTED (sh
 
 - Docker is unavailable in this environment; PostgreSQL runs directly on localhost:5433. `docker-compose.yml` is included for environments with Docker.
 - Authentication uses a single demo officer account suitable for a hackathon demo, not multi-user production auth.
-- Image uploads are not implemented; an optional image URL field could be added.
+- Image uploads rely on Cloudinary free tier, which has usage limits. Image URLs are public URLs — anyone with the URL can view the image, but only officers can see it through the API.
 - No real government integration, statistics, or partnerships are claimed.
 
 ## Commands summary
@@ -248,3 +288,7 @@ cd apps/api && npm test           # 12 tests
 9. Update saved via database transaction (status + history) ✅
 10. Citizen tracking page shows the new status and timeline ✅
 11. API restarted; report and history persist in PostgreSQL ✅
+12. Image upload with Cloudinary works via multipart submission ✅
+13. Image URL visible to officers in report detail ✅
+14. Image URL excluded from public tracking ✅
+15. All 41 API tests pass ✅

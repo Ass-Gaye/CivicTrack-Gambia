@@ -41,6 +41,7 @@ export interface CreateReportInput {
   contactName?: string | null
   contactPhone?: string | null
   contactEmail: string
+  image?: File | null
 }
 
 export interface SubmitResult {
@@ -48,10 +49,27 @@ export interface SubmitResult {
   status: string
   message: string
   emailSent: boolean
+  imageSent: boolean
 }
 
 export async function submitReport(data: CreateReportInput): Promise<SubmitResult> {
-  const res = await api.post<{ data: SubmitResult }>('/api/reports', data)
+  const formData = new FormData()
+  formData.append('title', data.title)
+  formData.append('description', data.description)
+  formData.append('category', data.category)
+  if (data.location) formData.append('location', data.location)
+  if (data.lga) formData.append('lga', data.lga)
+  if (data.locationId) formData.append('locationId', data.locationId)
+  if (data.customLocation) formData.append('customLocation', data.customLocation)
+  formData.append('streetNumber', data.streetNumber)
+  if (data.latitude !== undefined && data.latitude !== null) formData.append('latitude', String(data.latitude))
+  if (data.longitude !== undefined && data.longitude !== null) formData.append('longitude', String(data.longitude))
+  if (data.contactName) formData.append('contactName', data.contactName)
+  if (data.contactPhone) formData.append('contactPhone', data.contactPhone)
+  formData.append('contactEmail', data.contactEmail)
+  if (data.image) formData.append('image', data.image)
+
+  const res = await api.post<{ data: SubmitResult }>('/api/reports', formData)
   return res.data.data
 }
 

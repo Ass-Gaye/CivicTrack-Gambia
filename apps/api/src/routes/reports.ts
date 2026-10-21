@@ -3,6 +3,7 @@ import { rateLimit } from 'express-rate-limit'
 import { submitReport, trackReport, resendConfirmation } from '../controllers/report.controller'
 import { validate } from '../middleware/validate'
 import { createReportSchema, referenceCodeParams } from '../schemas/report'
+import { uploadImageMiddleware, validateUploadedFile } from '../middleware/upload'
 
 const router = Router()
 
@@ -17,7 +18,9 @@ router.post(
     standardHeaders: true,
     legacyHeaders: false,
   }),
+  uploadImageMiddleware,
   validate(createReportSchema),
+  validateUploadedFile,
   submitReport
 )
 

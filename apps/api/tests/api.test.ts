@@ -7,8 +7,6 @@ import { signToken } from '../src/lib/auth'
 const request = (await import('supertest')).default
 
 // Mock the Resend SDK so no real emails are sent and no network is required.
-// The email service reads RESEND_API_KEY lazily; it is set from apps/api/.env
-// (or below in beforeAll) so the provider is constructed with a mocked transport.
 const sendMock = vi.fn()
 vi.mock('resend', () => ({
   Resend: vi.fn().mockImplementation(() => ({
@@ -16,11 +14,27 @@ vi.mock('resend', () => ({
   })),
 }))
 
+// Mock Cloudinary so no real uploads happen in tests. getCloudinary() returns
+// null (not configured), so uploadImage() throws and the controller continues
+// without an image — report is still saved.
+vi.mock('../src/services/cloudinary.service', () => ({
+  getCloudinary: vi.fn().mockReturnValue(null),
+  uploadImage: vi.fn(),
+  deleteImage: vi.fn(),
+  validateImageFile: vi.fn(),
+}))
+
 import { escapeHtml, buildConfirmationHtml, buildConfirmationText } from '../src/services/email.service'
+import { uploadImage } from '../src/services/cloudinary.service'
+
+const uploadImageMock = vi.mocked(uploadImage)
 
 beforeEach(() => {
   sendMock.mockReset()
   sendMock.mockResolvedValue({ data: { id: 'resend_mock_id' } })
+  uploadImageMock.mockReset()
+  // By default, Cloudinary is not configured in tests, so no image upload.
+  uploadImageMock.mockRejectedValue(new Error('Cloudinary not configured'))
 })
 
 const prisma = new PrismaClient()
@@ -35,7 +49,6 @@ async function seedDatabase() {
     stdio: 'pipe',
     env: { ...process.env },
   })
-  // Make re-seeding safe: clear seeded reports (officer is upserted in seed.ts).
   await prisma.reportStatusUpdate.deleteMany()
   await prisma.report.deleteMany()
 
@@ -82,6 +95,25 @@ afterAll(async () => {
   appServer?.close()
 })
 
+/**
+ * Helper to submit a report as multipart/form-data (matching the API endpoint).
+ * All text fields are sent as form fields; an optional file buffer can be
+ * attached as the 'image' field.
+ */
+function postMultipart(
+  data: Record<string, string>,
+  file?: { buffer: Buffer; filename: string; mimetype: string }
+) {
+  let req = request(app).post('/api/reports')
+  for (const [key, value] of Object.entries(data)) {
+    req = req.field(key, value)
+  }
+  if (file) {
+    req = req.attach('image', file.buffer, file.filename)
+  }
+  return req
+}
+
 describe('API health', () => {
   it('responds successfully', async () => {
     const res = await request(app).get('/api/health')
@@ -92,7 +124,7 @@ describe('API health', () => {
 
 describe('Report submission', () => {
   it('saves a valid report with a unique reference code', async () => {
-    const res = await request(app).post('/api/reports').send({
+    const res = await postMultipart({
       title: 'Blocked drain at test street',
       description: 'The drain is blocked and water is standing in the road.',
       category: 'BLOCKED_DRAIN',
@@ -107,7 +139,7 @@ describe('Report submission', () => {
   })
 
   it('rejects an invalid report submission', async () => {
-    const res = await request(app).post('/api/reports').send({
+    const res = await postMultipart({
       title: 'ab',
       description: 'too short',
       category: 'NOT_A_CATEGORY',
@@ -128,18 +160,15 @@ describe('Report submission', () => {
       contactEmail: 'citizen@example.gm',
     }
 
-    // Missing
-    const missingRes = await request(app).post('/api/reports').send(payload)
+    const missingRes = await postMultipart(payload)
     expect(missingRes.status).toBe(400)
     expect(missingRes.body.error.code).toBe('VALIDATION_ERROR')
 
-    // Empty
-    const emptyRes = await request(app).post('/api/reports').send({ ...payload, streetNumber: '' })
+    const emptyRes = await postMultipart({ ...payload, streetNumber: '' })
     expect(emptyRes.status).toBe(400)
     expect(emptyRes.body.error.code).toBe('VALIDATION_ERROR')
 
-    // Whitespace only
-    const whitespaceRes = await request(app).post('/api/reports').send({ ...payload, streetNumber: '   ' })
+    const whitespaceRes = await postMultipart({ ...payload, streetNumber: '   ' })
     expect(whitespaceRes.status).toBe(400)
     expect(whitespaceRes.body.error.code).toBe('VALIDATION_ERROR')
   })
@@ -147,7 +176,7 @@ describe('Report submission', () => {
   it('generates unique reference codes on repeated submissions', async () => {
     const codes = new Set<string>()
     for (let i = 0; i < 5; i++) {
-      const res = await request(app).post('/api/reports').send({
+      const res = await postMultipart({
         title: `Unique report ${i}`,
         description: 'A description long enough to pass validation for uniqueness testing.',
         category: 'OTHER',
@@ -159,6 +188,95 @@ describe('Report submission', () => {
       codes.add(res.body.data.referenceCode)
     }
     expect(codes.size).toBe(5)
+  })
+})
+
+describe('Report submission with image upload', () => {
+  const basePayload = {
+    title: 'Blocked drain at test street',
+    description: 'The drain is blocked and water is standing in the road.',
+    category: 'BLOCKED_DRAIN',
+    location: 'Test Street',
+    streetNumber: '12',
+    contactEmail: 'citizen@example.gm',
+  }
+
+  it('submits a report with an image and stores the image URL', async () => {
+    uploadImageMock.mockResolvedValue({
+      url: 'https://res.cloudinary.com/demo/image/upload/v1/civictrack-gambia/reports/abc123.jpg',
+      publicId: 'civictrack-gambia/reports/abc123',
+      secureUrl: 'https://res.cloudinary.com/demo/image/upload/v1/civictrack-gambia/reports/abc123.jpg',
+      width: 800,
+      height: 600,
+      format: 'jpg',
+      bytes: 12345,
+    })
+
+    const res = await postMultipart(basePayload, {
+      buffer: Buffer.from('fake image data'),
+      filename: 'photo.jpg',
+      mimetype: 'image/jpeg',
+    })
+
+    expect(res.status).toBe(201)
+    expect(res.body.data.imageSent).toBe(true)
+
+    const report = await prisma.report.findFirst({
+      where: { referenceCode: res.body.data.referenceCode },
+    })
+    expect(report).not.toBeNull()
+    expect(report!.imageUrl).toBe('https://res.cloudinary.com/demo/image/upload/v1/civictrack-gambia/reports/abc123.jpg')
+    expect(report!.imageKey).toBe('civictrack-gambia/reports/abc123')
+
+    expect(uploadImageMock).toHaveBeenCalledTimes(1)
+    const call = uploadImageMock.mock.calls[0][0]
+    expect(call.originalname).toBe('photo.jpg')
+    expect(call.mimetype).toBe('image/jpeg')
+  })
+
+  it('submits a report without an image (no image field)', async () => {
+    const res = await postMultipart(basePayload)
+    expect(res.status).toBe(201)
+    expect(res.body.data.imageSent).toBe(false)
+
+    const report = await prisma.report.findFirst({
+      where: { referenceCode: res.body.data.referenceCode },
+    })
+    expect(report).not.toBeNull()
+    expect(report!.imageUrl).toBeNull()
+    expect(report!.imageKey).toBeNull()
+
+    expect(uploadImageMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects an invalid file type', async () => {
+    const res = await postMultipart(basePayload, {
+      buffer: Buffer.from('not an image'),
+      filename: 'document.pdf',
+      mimetype: 'application/pdf',
+    })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error.code).toBe('INVALID_FILE')
+  })
+
+  it('keeps the report when image upload fails', async () => {
+    uploadImageMock.mockRejectedValue(new Error('Cloudinary upload failed'))
+
+    const res = await postMultipart(basePayload, {
+      buffer: Buffer.from('fake image data'),
+      filename: 'photo.jpg',
+      mimetype: 'image/jpeg',
+    })
+
+    expect(res.status).toBe(201)
+    expect(res.body.data.imageSent).toBe(false)
+
+    const report = await prisma.report.findFirst({
+      where: { referenceCode: res.body.data.referenceCode },
+    })
+    expect(report).not.toBeNull()
+    expect(report!.imageUrl).toBeNull()
   })
 })
 
@@ -182,15 +300,44 @@ describe('Public tracking', () => {
     expect(res.body.error.message).not.toContain('stack')
   })
 
-  it('does not expose contact details in the public tracking response', async () => {
+  it('does not expose contact details or image in public tracking', async () => {
     const res = await request(app).get('/api/reports/track/CTG-TEST-0001')
     const body = JSON.stringify(res.body.data)
     expect(body).not.toContain('contactName')
     expect(body).not.toContain('contactPhone')
     expect(body).not.toContain('contactEmail')
+    expect(body).not.toContain('imageUrl')
+    expect(body).not.toContain('imageKey')
     expect(res.body.data).not.toHaveProperty('contactName')
     expect(res.body.data).not.toHaveProperty('contactPhone')
     expect(res.body.data).not.toHaveProperty('contactEmail')
+    expect(res.body.data).not.toHaveProperty('imageUrl')
+    expect(res.body.data).not.toHaveProperty('imageKey')
+  })
+
+  it('does not expose image URL in public tracking when image exists', async () => {
+    // Create a report with an image via direct DB insert
+    await prisma.report.create({
+      data: {
+        referenceCode: 'CTG-IMG-TEST-1',
+        title: 'Report with image',
+        description: 'A report that has an image attached.',
+        category: 'BLOCKED_DRAIN',
+        location: 'Test Street',
+        streetNumber: '1',
+        contactEmail: 'citizen@example.gm',
+        imageUrl: 'https://res.cloudinary.com/demo/image/upload/v1/photo.jpg',
+        imageKey: 'civictrack-gambia/reports/photo',
+        status: 'SUBMITTED',
+      },
+    })
+
+    const res = await request(app).get('/api/reports/track/CTG-IMG-TEST-1')
+    expect(res.status).toBe(200)
+    expect(res.body.data).not.toHaveProperty('imageUrl')
+    expect(res.body.data).not.toHaveProperty('imageKey')
+    expect(JSON.stringify(res.body.data)).not.toContain('imageUrl')
+    expect(JSON.stringify(res.body.data)).not.toContain('imageKey')
   })
 })
 
@@ -229,7 +376,7 @@ describe('Officer authentication and status updates', () => {
     expect(res.body.data.updates.some((u: any) => u.publicNote === 'Test progress note from officer')).toBe(true)
   })
 
-  it('includes street number in officer report details and report listing', async () => {
+  it('includes street number and image URL in officer report details', async () => {
     const detailRes = await request(app)
       .get(`/api/officer/reports/${reportId}`)
       .set('Cookie', `civictrack_session=${officerToken}`)
@@ -243,6 +390,38 @@ describe('Officer authentication and status updates', () => {
     const found = listRes.body.data.reports.find((r: any) => r.id === reportId)
     expect(found).toBeDefined()
     expect(found.streetNumber).toBe('10A')
+  })
+
+  it('shows image URL in officer report detail when image exists', async () => {
+    const detailRes = await request(app)
+      .get(`/api/officer/reports/${reportId}`)
+      .set('Cookie', `civictrack_session=${officerToken}`)
+    expect(detailRes.status).toBe(200)
+    // reportId (CTG-TEST-0001) has no image, so imageUrl should be null
+    expect(detailRes.body.data.imageUrl).toBeNull()
+
+    // Create a report with an image and check officer detail
+    const created = await prisma.report.create({
+      data: {
+        referenceCode: 'CTG-IMG-OFFICER-1',
+        title: 'Report with photo',
+        description: 'A report with an attached photo.',
+        category: 'DAMAGED_ROAD',
+        location: 'Test Street',
+        streetNumber: '5',
+        contactEmail: 'citizen@example.gm',
+        imageUrl: 'https://res.cloudinary.com/demo/image/upload/v1/photo.jpg',
+        imageKey: 'civictrack-gambia/reports/photo1',
+        status: 'SUBMITTED',
+      },
+    })
+
+    const detailRes2 = await request(app)
+      .get(`/api/officer/reports/${created.id}`)
+      .set('Cookie', `civictrack_session=${officerToken}`)
+    expect(detailRes2.status).toBe(200)
+    expect(detailRes2.body.data.imageUrl).toBe('https://res.cloudinary.com/demo/image/upload/v1/photo.jpg')
+    expect(detailRes2.body.data.imageKey).toBe('civictrack-gambia/reports/photo1')
   })
 })
 
@@ -275,7 +454,7 @@ describe('Email confirmation and delivery', () => {
   }
 
   it('submits a valid report, sends the confirmation email, and returns the reference code', async () => {
-    const res = await request(app).post('/api/reports').send({
+    const res = await postMultipart({
       ...basePayload,
       contactName: 'Citizen User',
       contactEmail: 'Citizen@Example.GM',
@@ -286,7 +465,6 @@ describe('Email confirmation and delivery', () => {
     expect(res.body.data.emailSent).toBe(true)
     expect(res.body.data.message).toContain('confirmation email has been sent')
 
-    // Email was handed to the mocked provider with a normalized recipient.
     expect(sendMock).toHaveBeenCalledTimes(1)
     const call = sendMock.mock.calls[0][0]
     expect(call.to).toBe('citizen@example.gm')
@@ -294,7 +472,6 @@ describe('Email confirmation and delivery', () => {
     expect(call.html).toContain(res.body.data.referenceCode)
     expect(call.text).toContain(res.body.data.referenceCode)
 
-    // The report was persisted before email delivery.
     const report = await prisma.report.findFirst({
       where: { referenceCode: res.body.data.referenceCode },
     })
@@ -305,7 +482,7 @@ describe('Email confirmation and delivery', () => {
   it('keeps the report and returns the reference code when the email provider fails', async () => {
     sendMock.mockRejectedValue(new Error('Provider downstream failure'))
 
-    const res = await request(app).post('/api/reports').send({
+    const res = await postMultipart({
       ...basePayload,
       contactEmail: 'fail@example.gm',
     })
@@ -315,7 +492,6 @@ describe('Email confirmation and delivery', () => {
     expect(res.body.data.emailSent).toBe(false)
     expect(res.body.data.message).toContain('could not be sent')
 
-    // Report remains saved despite the delivery failure.
     const report = await prisma.report.findFirst({
       where: { referenceCode: res.body.data.referenceCode },
     })
@@ -324,11 +500,11 @@ describe('Email confirmation and delivery', () => {
   })
 
   it('rejects a missing or invalid email', async () => {
-    const missingRes = await request(app).post('/api/reports').send({ ...basePayload })
+    const missingRes = await postMultipart({ ...basePayload })
     expect(missingRes.status).toBe(400)
     expect(missingRes.body.error.code).toBe('VALIDATION_ERROR')
 
-    const invalidRes = await request(app).post('/api/reports').send({
+    const invalidRes = await postMultipart({
       ...basePayload,
       contactEmail: 'not-an-email',
     })
@@ -337,7 +513,7 @@ describe('Email confirmation and delivery', () => {
   })
 
   it('does not expose the citizen email in public tracking', async () => {
-    const res = await request(app).post('/api/reports').send({
+    const res = await postMultipart({
       ...basePayload,
       contactEmail: 'private@example.gm',
     })
@@ -354,7 +530,7 @@ describe('Email confirmation and delivery', () => {
   })
 
   it('resends the confirmation email for an existing report', async () => {
-    const submitRes = await request(app).post('/api/reports').send({
+    const submitRes = await postMultipart({
       ...basePayload,
       contactEmail: 'resend@example.gm',
     })
@@ -378,14 +554,13 @@ describe('Email confirmation and delivery', () => {
     )
     expect(unknown.status).toBe(404)
 
-    // CTG-TEST-0001 is seeded without a contact email.
     const noEmail = await request(app).post('/api/reports/track/CTG-TEST-0001/resend-confirmation')
     expect(noEmail.status).toBe(400)
     expect(noEmail.body.error.code).toBe('NO_EMAIL_ON_FILE')
   })
 
   it('rate-limits the resend confirmation endpoint', async () => {
-    const submitRes = await request(app).post('/api/reports').send({
+    const submitRes = await postMultipart({
       ...basePayload,
       contactEmail: 'ratelimit@example.gm',
     })
@@ -399,9 +574,6 @@ describe('Email confirmation and delivery', () => {
       )
       statuses.push(r.status)
     }
-    // Earlier tests in this file also hit this rate-limited route, so the
-    // exact counter value varies; what matters is that the limit is enforced
-    // and the final request is rejected with 429.
     expect(statuses.every((s) => s === 200 || s === 429)).toBe(true)
     expect(statuses.at(-1)).toBe(429)
     expect(statuses.filter((s) => s === 429).length).toBeGreaterThanOrEqual(1)
@@ -426,7 +598,6 @@ describe('Email content', () => {
       categoryLabel: unsafe,
       location: unsafe,
     })
-    // Raw markup must never be inserted; only the escaped form may appear.
     expect(html).not.toContain(unsafe)
     expect(html).not.toContain('<img')
     expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;')
@@ -487,7 +658,6 @@ describe('Geographic Dropdowns & Locations API', () => {
       expect(receivedNames).toContain(expected)
     }
 
-    // Verify official administrative distinctions are preserved in the data model
     const banjul = res.body.data.find((l: any) => l.name === 'Banjul City Council')
     expect(banjul.councilType).toBe('City Council')
     expect(banjul.administrativeRegion).toBe('Greater Banjul Area')
@@ -564,7 +734,7 @@ describe('Report Submission with Geographic LGA Validation', () => {
       expect(locRes.body.data.length).toBeGreaterThan(0)
       const locationItem = locRes.body.data[0]
 
-      const postRes = await request(app).post('/api/reports').send({
+      const postRes = await postMultipart({
         title: `Pothole reported in ${testCase.lga}`,
         description: 'Road damage requiring municipal repair team inspection.',
         category: 'DAMAGED_ROAD',
@@ -577,7 +747,6 @@ describe('Report Submission with Geographic LGA Validation', () => {
       expect(postRes.status).toBe(201)
       expect(postRes.body.data.referenceCode).toBeDefined()
 
-      // Verify tracking response returns readable location and LGA name
       const trackRes = await request(app).get(`/api/reports/track/${postRes.body.data.referenceCode}`)
       expect(trackRes.status).toBe(200)
       expect(trackRes.body.data.lga).toBe(testCase.lga)
@@ -588,12 +757,10 @@ describe('Report Submission with Geographic LGA Validation', () => {
   })
 
   it('rejects submissions where the location does not belong to the selected LGA', async () => {
-    // Pick a location from Basse Area Council
     const basseLocRes = await request(app).get('/api/locations?lga=basse')
     const basseLocation = basseLocRes.body.data[0]
 
-    // Attempt to submit under Banjul City Council with Basse location
-    const mismatchRes = await request(app).post('/api/reports').send({
+    const mismatchRes = await postMultipart({
       title: 'Mismatched location test',
       description: 'Attempting cross-LGA submission which should fail.',
       category: 'DAMAGED_ROAD',
@@ -609,7 +776,7 @@ describe('Report Submission with Geographic LGA Validation', () => {
   })
 
   it('supports the Other / Not listed workflow when custom location text is provided', async () => {
-    const res = await request(app).post('/api/reports').send({
+    const res = await postMultipart({
       title: 'Missing compound access road',
       description: 'The feeder lane to the new health post has eroded.',
       category: 'DAMAGED_ROAD',
@@ -631,7 +798,7 @@ describe('Report Submission with Geographic LGA Validation', () => {
   })
 
   it('rejects Other / Not listed submissions when custom location text is missing or blank', async () => {
-    const res = await request(app).post('/api/reports').send({
+    const res = await postMultipart({
       title: 'Missing location details test',
       description: 'Testing that Other without text is rejected.',
       category: 'OTHER',
@@ -647,7 +814,7 @@ describe('Report Submission with Geographic LGA Validation', () => {
   })
 
   it('rejects an invalid or fabricated LGA name', async () => {
-    const res = await request(app).post('/api/reports').send({
+    const res = await postMultipart({
       title: 'Invalid LGA test',
       description: 'Attempting invalid LGA submission.',
       category: 'OTHER',

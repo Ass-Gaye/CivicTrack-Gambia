@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ShieldCheck, Mail, Lock, ArrowLeft, Sparkles } from 'lucide-react'
+import { ShieldCheck, Mail, Lock, ArrowLeft } from 'lucide-react'
 import { Navbar } from '@/components/Navbar'
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
@@ -15,11 +15,6 @@ export function OfficerLoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  const handleFillDemo = () => {
-    setEmail('officer@civictrack.gm')
-    setPassword('DemoOfficerPass123!')
-  }
-
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
@@ -30,7 +25,7 @@ export function OfficerLoginPage() {
       const is401 = err?.status === 401 || err?.response?.status === 401
       setError(
         is401
-          ? 'Invalid credentials. If using local dev, click "Fill Demo Credentials" below.'
+          ? 'Invalid credentials. Please check your email and password.'
           : 'Unable to connect to the authentication service. Please try again.'
       )
     }
@@ -67,7 +62,7 @@ export function OfficerLoginPage() {
                 label="Municipal Email Address"
                 type="email"
                 required
-                placeholder="officer@civictrack.gm"
+                placeholder="Enter your municipal email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 icon={<Mail className="w-4 h-4 text-sand-400" />}
@@ -95,24 +90,6 @@ export function OfficerLoginPage() {
             </form>
           )}
 
-          {/* Quick Demo Credentials Assistant */}
-          <div className="mt-6 pt-5 border-t border-sand-200">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-sand-500">Hackathon Demo Access</span>
-              <button
-                type="button"
-                onClick={handleFillDemo}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-river-700 hover:text-river-900 bg-river-50 border border-river-200 px-2 py-0.5 rounded-md transition-colors"
-              >
-                <Sparkles className="w-3 h-3 text-ochre-500" />
-                Fill Demo Credentials
-              </button>
-            </div>
-            <div className="bg-sand-50 rounded-xl p-3 border border-sand-200 text-xs font-mono text-sand-700 space-y-1">
-              <div>Email: officer@civictrack.gm</div>
-              <div>Password: DemoOfficerPass123!</div>
-            </div>
-          </div>
         </Card>
 
         <p className="mt-6 text-center text-xs text-sand-500">

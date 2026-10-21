@@ -46,6 +46,21 @@ export function getCloudinary() {
 }
 
 /**
+ * Multer file interface (simplified to avoid namespace import issues).
+ */
+interface MulterFile {
+  fieldname: string
+  originalname: string
+  encoding: string
+  mimetype: string
+  size: number
+  destination: string
+  filename: string
+  path: string
+  buffer: Buffer
+}
+
+/**
  * Allowed MIME types for image uploads.
  */
 const ALLOWED_MIME_TYPES = [
@@ -64,7 +79,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024
  * Validate an uploaded file before sending to Cloudinary.
  * Returns null if valid, or an error message string if invalid.
  */
-export function validateImageFile(file: Express.Multer.File): string | null {
+export function validateImageFile(file: MulterFile): string | null {
   // Check MIME type
   if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
     return `Invalid file type "${file.mimetype}". Only JPEG, PNG, and WebP images are allowed.`
@@ -87,7 +102,7 @@ export function validateImageFile(file: Express.Multer.File): string | null {
  * saved without image).
  */
 export async function uploadImage(
-  file: Express.Multer.File
+  file: MulterFile
 ): Promise<CloudinaryUploadResult> {
   const cloudinaryClient = getCloudinary()
   if (!cloudinaryClient) {

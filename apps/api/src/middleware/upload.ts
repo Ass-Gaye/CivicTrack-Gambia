@@ -1,6 +1,14 @@
 import { Request, Response, NextFunction } from 'express'
-import multer from 'multer'
+import multer, { Multer } from 'multer'
 import { validateImageFile } from '../services/cloudinary.service'
+
+declare global {
+  namespace Express {
+    interface Request {
+      file?: Multer.File
+    }
+  }
+}
 
 /**
  * Multer storage configuration.
@@ -19,7 +27,7 @@ export const uploadImage = multer({
   limits: {
     fileSize: 5 * 1024 * 1024, // 5 MB
   },
-  fileFilter: (_req, file, cb) => {
+  fileFilter: (_req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
     const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
     if (!allowed.includes(file.mimetype)) {
       return cb(new Error('Invalid file type. Only JPEG, PNG, and WebP images are allowed.'))

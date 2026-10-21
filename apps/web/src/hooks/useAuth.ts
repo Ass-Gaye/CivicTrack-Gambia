@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getSession, login, logout } from '@/services/auth'
 import type { AuthUser } from '@/types'
 
@@ -31,6 +32,8 @@ export function useAuth() {
     []
   )
 
+  const navigate = useNavigate()
+
   const signOut = useCallback(async () => {
     try {
       await logout()
@@ -38,7 +41,8 @@ export function useAuth() {
       // ignore logout errors; clear local state regardless
     }
     setState({ user: null, loading: false })
-  }, [])
+    navigate('/officer/login', { replace: true })
+  }, [navigate])
 
   return { ...state, signIn, signOut }
 }

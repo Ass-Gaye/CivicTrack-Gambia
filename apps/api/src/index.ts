@@ -6,6 +6,7 @@ import { errorHandler, notFound } from './middleware/error'
 import reportRoutes from './routes/reports'
 import authRoutes from './routes/auth'
 import officerRoutes from './routes/officer'
+import { locationRouter } from './routes/locations'
 
 dotenv.config()
 
@@ -56,6 +57,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/reports', reportRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/officer', officerRoutes)
+app.use('/api/locations', locationRouter)
 
 app.use(notFound)
 app.use(errorHandler)

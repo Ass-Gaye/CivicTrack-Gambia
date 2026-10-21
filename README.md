@@ -17,6 +17,7 @@ CivicTrack Gambia is a mobile-first civic reporting and public-complaint trackin
 | Database | PostgreSQL 18 + Prisma ORM |
 | Auth | JWT in HttpOnly, SameSite=Strict cookie; bcryptjs password hashing |
 | Rate limiting | express-rate-limit |
+| Email delivery | Resend (official SDK), server-side only |
 | Testing | Vitest + Supertest |
 
 ## Project structure
@@ -65,9 +66,21 @@ JWT_EXPIRES_IN=8h
 DEMO_OFFICER_NAME="Duty Officer"
 DEMO_OFFICER_EMAIL=officer@civictrack.gm
 DEMO_OFFICER_PASSWORD=DemoOfficerPass123!
+RESEND_API_KEY=re_your_resend_api_key
+EMAIL_FROM="CivicTrack Gambia <onboarding@resend.dev>"
 ```
 
 `apps/web/.env` is not required — `VITE_API_URL` defaults to `http://localhost:4000` and the Vite dev server proxies `/api` to the backend.
+
+### Email configuration
+
+Confirmation emails are sent through [Resend](https://resend.com). All email configuration lives in `apps/api/.env` (server-side only) and is **never** exposed to the Vite frontend:
+
+- `RESEND_API_KEY` — your Resend API key (create one at https://resend.com/api-keys).
+- `EMAIL_FROM` — a verified sender address, e.g. `CivicTrack Gambia <onboarding@resend.dev>`. In Resend's test mode `onboarding@resend.dev` works without verification; in production you must verify your own domain (see "Sender domain verification" below).
+- `FRONTEND_URL` — the public frontend origin used in confirmation email tracking links (e.g. `https://civictrack-gambia.vercel.app`).
+
+See `.env.example` for placeholders. Real secrets must never be committed; `.env` files are gitignored.
 
 > Secrets are never committed. `.env` is gitignored. Only `.env.example` is tracked.
 
@@ -167,8 +180,9 @@ The seed script upserts this officer. Sign in at `/officer/login`, then access `
 
 Public endpoints:
 - `GET /api/health` — health check
-- `POST /api/reports` — submit a report (rate-limited: 20/15min per IP). Returns `{ referenceCode, status }`
-- `GET /api/reports/track/:reference` — public tracking (rate-limited: 30/15min per IP). Returns public report + timeline, no contact/officer info
+- `POST /api/reports` — submit a report (rate-limited: 20/15min per IP). Returns `{ referenceCode, status, emailSent, message }`. The report is persisted before the confirmation email is attempted; if email delivery fails the report is still saved and `emailSent` is `false`.
+- `GET /api/reports/track/:reference` — public tracking (rate-limited: 30/15min per IP). Returns public report + timeline, no contact/officer info. Citizen email is never exposed.
+- `POST /api/reports/track/:reference/resend-confirmation` — re-send the confirmation email to the address already on file (rate-limited: 3/15min per IP). Citizens cannot choose the recipient.
 - `GET /api/reports/categories` — list issue categories
 
 Officer endpoints (all require authenticated session via HttpOnly cookie):
@@ -186,10 +200,23 @@ Statuses: SUBMITTED, UNDER_REVIEW, ASSIGNED, IN_PROGRESS, RESOLVED, REJECTED (sh
 
 - Set `NODE_ENV=production` and a strong `JWT_SECRET`.
 - Use HTTPS so the Secure session cookie works.
-- Set `FRONTEND_URL` to your frontend origin for CORS.
+- Set `FRONTEND_URL` to your frontend origin for CORS and for confirmation email tracking links.
 - Point `DATABASE_URL` at a managed PostgreSQL instance.
 - Run `npx prisma migrate deploy` before starting the API.
 - The frontend build output (`apps/web/dist`) can be served statically; set `VITE_API_URL` at build time.
+
+### Email in production
+
+1. Add `RESEND_API_KEY`, `EMAIL_FROM`, and `FRONTEND_URL` to the Render environment (via the dashboard or `render.yaml`; they are marked `sync: false` so you set them manually).
+2. Verify your sender domain in Resend and update `EMAIL_FROM` to an address on that domain (e.g. `CivicTrack Gambia <reports@civictrack.gm>`). Resend requires DNS records (SPF/DKIM/DMARC) for the domain; see Resend's domain verification docs. Until verified, use Resend's test mode with `onboarding@resend.dev`.
+3. Resend enforces daily sending limits on free plans; monitor the `emailSent` flag in submission responses — a `false` value means delivery could not be confirmed and the citizen should be advised to save their reference code.
+
+### Sender domain verification
+
+- Add and verify your domain in Resend (https://resend.com/domains).
+- Publish the DKIM and SPF records Resend provides to your DNS.
+- Set `EMAIL_FROM` to an address from the verified domain, e.g. `CivicTrack Gambia <reports@yourdomain.gm>`.
+- Never set `EMAIL_FROM` to a value supplied by a user; the API constructs all emails from templates.
 
 ## Known limitations
 

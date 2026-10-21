@@ -27,6 +27,14 @@ services:
         sync: false
       - key: DEMO_OFFICER_PASSWORD
         sync: false
+      # --- Email delivery (Resend) ---
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      # Public frontend URL used in confirmation email tracking links
+      - key: FRONTEND_URL
+        sync: false
 
 databases:
   - name: civictrack-db

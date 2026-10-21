@@ -31,18 +31,23 @@ export interface CreateReportInput {
   title: string
   description: string
   category: string
-  location: string
+  location?: string
+  lga?: string | null
+  locationId?: string | null
+  customLocation?: string | null
+  streetNumber: string
   latitude?: number | null
   longitude?: number | null
   contactName?: string | null
   contactPhone?: string | null
-  contactEmail?: string | null
+  contactEmail: string
 }
 
 export interface SubmitResult {
   referenceCode: string
   status: string
   message: string
+  emailSent: boolean
 }
 
 export async function submitReport(data: CreateReportInput): Promise<SubmitResult> {
@@ -73,6 +78,7 @@ export async function getOfficerReports(params?: {
   search?: string
   category?: string
   status?: string
+  lga?: string
 }): Promise<OfficerReportsResult> {
   const res = await api.get<{ data: OfficerReportsResult }>('/api/officer/reports', { params })
   return res.data.data

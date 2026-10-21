@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   Copy,
   Check,
-  MapPin,
   Compass,
   Lock,
   ArrowRight,
@@ -19,6 +18,7 @@ import {
   Building2,
   Wrench,
   FileText,
+  AlertTriangle,
 } from 'lucide-react'
 import { Navbar } from '@/components/Navbar'
 import { Button } from '@/components/Button'
@@ -32,6 +32,10 @@ import { Loading } from '@/components/Loading'
 import { useReports } from '@/hooks/useReports'
 import { CATEGORIES } from '@/services/reports'
 
+import { SearchableLocationSelect } from '@/components/SearchableLocationSelect'
+import { getLgas, getLocations, OFFICIAL_LGAS } from '@/services/locations'
+import type { LocalGovernmentArea, LocationItem } from '@/types'
+
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
   BLOCKED_DRAIN: Droplets,
   WASTE_DISPOSAL: Trash2,
@@ -41,17 +45,42 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   OTHER: Wrench,
 }
 
-const formSchema = z.object({
-  category: z.string().min(1, 'Please select an issue category'),
-  title: z.string().min(3, 'Title must be at least 3 characters').max(200),
-  description: z.string().min(10, 'Description must be at least 10 characters').max(2000),
-  location: z.string().min(2, 'Location must be at least 2 characters').max(200),
-  latitude: z.preprocess((v) => (v === '' || v === null || v === undefined ? undefined : Number(v)), z.number().optional()),
-  longitude: z.preprocess((v) => (v === '' || v === null || v === undefined ? undefined : Number(v)), z.number().optional()),
-  contactName: z.string().max(100).optional().or(z.literal('')),
-  contactPhone: z.string().max(50).optional().or(z.literal('')),
-  contactEmail: z.string().email('Enter a valid email address').max(150).optional().or(z.literal('')),
-})
+const formSchema = z
+  .object({
+    category: z.string().min(1, 'Please select an issue category'),
+    title: z.string().min(3, 'Title must be at least 3 characters').max(200),
+    description: z.string().min(10, 'Description must be at least 10 characters').max(2000),
+    lga: z.string().min(1, 'Please select a Region / Local Government Area'),
+    locationId: z.string().min(1, 'Please select a community, street or landmark'),
+    location: z.string().optional(),
+    customLocation: z.string().optional(),
+    streetNumber: z
+      .string()
+      .trim()
+      .min(1, 'Street number is required')
+      .max(100, 'Street number must be at most 100 characters'),
+    latitude: z.preprocess((v) => (v === '' || v === null || v === undefined ? undefined : Number(v)), z.number().optional()),
+    longitude: z.preprocess((v) => (v === '' || v === null || v === undefined ? undefined : Number(v)), z.number().optional()),
+    contactName: z.string().max(100).optional().or(z.literal('')),
+    contactPhone: z.string().max(50).optional().or(z.literal('')),
+    contactEmail: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .email('Enter a valid email address')
+      .max(150, 'Email address must be at most 150 characters'),
+  })
+  .superRefine((data, ctx) => {
+    if (data.locationId === 'OTHER') {
+      if (!data.customLocation || data.customLocation.trim().length < 2) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Please specify the exact community, street or landmark name',
+          path: ['customLocation'],
+        })
+      }
+    }
+  })
 
 type FormValues = z.infer<typeof formSchema>
 
@@ -60,10 +89,17 @@ export function ReportSubmitPage() {
   const categoryParam = searchParams.get('category') || ''
 
   const { submitReport, loading, error } = useReports()
-  const [submitted, setSubmitted] = useState<{ referenceCode: string } | null>(null)
+  const [submitted, setSubmitted] = useState<{
+    referenceCode: string
+    emailSent: boolean
+  } | null>(null)
   const [copied, setCopied] = useState(false)
   const [locating, setLocating] = useState(false)
   const [geoNotice, setGeoNotice] = useState<string | null>(null)
+
+  const [lgas, setLgas] = useState<LocalGovernmentArea[]>(OFFICIAL_LGAS)
+  const [locations, setLocations] = useState<LocationItem[]>([])
+  const [locationsLoading, setLocationsLoading] = useState(false)
 
   const methods = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -71,7 +107,11 @@ export function ReportSubmitPage() {
       category: categoryParam,
       title: '',
       description: '',
+      lga: '',
+      locationId: '',
       location: '',
+      customLocation: '',
+      streetNumber: '',
       latitude: undefined,
       longitude: undefined,
       contactName: '',
@@ -80,8 +120,61 @@ export function ReportSubmitPage() {
     },
   })
 
-  // Watch category to highlight active pill
+  // Load official LGAs on mount
+  useEffect(() => {
+    getLgas().then(setLgas).catch(() => {})
+  }, [])
+
+  // Watch selected values
   const selectedCategory = methods.watch('category')
+  const selectedLga = methods.watch('lga')
+  const selectedLocationId = methods.watch('locationId')
+
+  const currentLga = lgas.find((l) => l.id === selectedLga)
+
+  // Handle LGA change
+  const handleLgaChange = async (newLgaId: string) => {
+    methods.setValue('lga', newLgaId, { shouldValidate: true })
+    methods.setValue('locationId', '', { shouldValidate: false })
+    methods.setValue('location', '')
+    methods.setValue('customLocation', '')
+    setLocations([])
+
+    if (!newLgaId) return
+
+    setLocationsLoading(true)
+    try {
+      const list = await getLocations(newLgaId)
+      setLocations(list)
+    } catch {
+      setLocations([])
+    } finally {
+      setLocationsLoading(false)
+    }
+  }
+
+  // Handle Location selection
+  const handleLocationSelect = (locId: string, item?: LocationItem) => {
+    methods.setValue('locationId', locId, { shouldValidate: true })
+    if (locId === 'OTHER') {
+      methods.setValue('location', '')
+    } else if (item) {
+      methods.setValue('location', item.name)
+      // Auto populate coordinates if present and not already manually filled
+      const currentLat = methods.getValues('latitude')
+      const currentLon = methods.getValues('longitude')
+      if (
+        item.latitude &&
+        item.longitude &&
+        (currentLat === undefined || currentLat === null) &&
+        (currentLon === undefined || currentLon === null)
+      ) {
+        methods.setValue('latitude', item.latitude)
+        methods.setValue('longitude', item.longitude)
+        setGeoNotice(`Coordinates auto-detected from verified location: ${item.name}.`)
+      }
+    }
+  }
 
   useEffect(() => {
     if (categoryParam) {
@@ -114,18 +207,28 @@ export function ReportSubmitPage() {
   const onSubmit = async (values: FormValues) => {
     setSubmitted(null)
     try {
+      const selectedLoc = locations.find((l) => l.id === values.locationId)
+      const locationName =
+        values.locationId === 'OTHER'
+          ? (values.customLocation || '').trim()
+          : selectedLoc?.name || values.location || ''
+
       const result = await submitReport({
         title: values.title,
         description: values.description,
         category: values.category,
-        location: values.location,
+        lga: values.lga,
+        locationId: values.locationId,
+        customLocation: values.locationId === 'OTHER' ? values.customLocation?.trim() : null,
+        location: locationName,
+        streetNumber: values.streetNumber.trim(),
         latitude: values.latitude,
         longitude: values.longitude,
         contactName: values.contactName || null,
         contactPhone: values.contactPhone || null,
-        contactEmail: values.contactEmail || null,
+        contactEmail: values.contactEmail,
       })
-      setSubmitted({ referenceCode: result.referenceCode })
+      setSubmitted({ referenceCode: result.referenceCode, emailSent: result.emailSent })
     } catch {
       // error handled by hook
     }
@@ -160,6 +263,25 @@ export function ReportSubmitPage() {
                 Thank you for contributing to your community. Your report is now in the municipal queue with a unique
                 tracking code.
               </p>
+
+              {/* Delivery outcome banner */}
+              {submitted.emailSent ? (
+                <div className="w-full rounded-xl bg-canopy-50 border border-canopy-200 p-4 mb-8 text-left flex items-start gap-3">
+                  <CheckCircle2 className="w-4 h-4 text-canopy-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-sand-700 leading-relaxed">
+                    <strong className="text-sand-900">Confirmation email sent.</strong> A confirmation email with your
+                    tracking code has been sent to your inbox. Please retain it for future reference.
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full rounded-xl bg-ochre-50 border border-ochre-200 p-4 mb-8 text-left flex items-start gap-3">
+                  <AlertTriangle className="w-4 h-4 text-ochre-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-sand-700 leading-relaxed">
+                    <strong className="text-sand-900">Confirmation email could not be sent.</strong> Your report was
+                    still submitted and saved. Save your tracking code above — you will need it to track your report.
+                  </div>
+                </div>
+              )}
 
               {/* Reference Code Display */}
               <div className="w-full bg-sand-50 border-2 border-dashed border-sand-300 rounded-2xl p-5 mb-8 text-left">
@@ -338,22 +460,84 @@ export function ReportSubmitPage() {
               />
             </Card>
 
-            {/* Step 2: Location & GPS */}
+            {/* Step 2: Location & Geography */}
             <Card padding="lg">
               <SectionTitle
                 eyebrow="Step 2"
                 title="Location & Geography"
-                description="Where exactly is this infrastructure problem located?"
+                description="Where exactly is this infrastructure problem located? Select the administrative council and specific location."
               />
 
+              {/* Region / Local Government Area Dropdown */}
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-sand-800 mb-1.5">
+                  Region / Local Government Area <span className="text-red-500">*</span>
+                </label>
+                <select
+                  className={`block w-full rounded-xl border px-3.5 py-2.5 text-sm bg-white font-medium cursor-pointer transition-all ${
+                    methods.formState.errors.lga
+                      ? 'border-red-400 text-sand-900 focus:ring-2 focus:ring-red-400/20'
+                      : 'border-sand-300 text-sand-900 focus:ring-2 focus:ring-river-500 hover:border-sand-400 shadow-sm'
+                  }`}
+                  value={selectedLga}
+                  onChange={(e) => handleLgaChange(e.target.value)}
+                >
+                  <option value="">Choose a Region / Local Government Area</option>
+                  {lgas.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name} ({l.councilType} • {l.administrativeRegion})
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-sand-500">
+                  Select the municipal council or local government area responsible for this jurisdiction.
+                </p>
+                {methods.formState.errors.lga && (
+                  <p className="mt-1.5 text-xs font-medium text-red-600">
+                    {methods.formState.errors.lga.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Community, Street or Landmark Searchable Dropdown */}
+              <div className="mb-4">
+                <SearchableLocationSelect
+                  locations={locations}
+                  value={selectedLocationId}
+                  onChange={handleLocationSelect}
+                  disabled={!selectedLga}
+                  loading={locationsLoading}
+                  error={methods.formState.errors.locationId?.message}
+                  lgaName={currentLga?.name}
+                  placeholder={
+                    selectedLga
+                      ? `Search in ${currentLga?.name}…`
+                      : 'Select a Region / LGA first to view locations'
+                  }
+                />
+              </div>
+
+              {/* Conditional manual text input for Other / Not listed */}
+              {selectedLocationId === 'OTHER' && (
+                <div className="mb-4 animate-in fade-in-0 duration-150">
+                  <Input
+                    label="Specify Community, Street or Landmark *"
+                    required
+                    placeholder="e.g. Near Old Mosque, London Corner or specific compound lane"
+                    hint="Describe the specific community, settlement, street, or landmark not found in the verified list."
+                    error={methods.formState.errors.customLocation?.message}
+                    {...methods.register('customLocation')}
+                  />
+                </div>
+              )}
+
               <Input
-                label="Community, Street or Landmark"
+                label="Street Number *"
                 required
-                placeholder="e.g. Sayerr Jobe Avenue, Serekunda or Kairaba Ave junction"
-                icon={<MapPin className="w-4 h-4 text-sand-400" />}
-                hint="Mention recognizable landmarks, nearby mosques, markets, or schools."
-                error={methods.formState.errors.location?.message}
-                {...methods.register('location')}
+                placeholder="e.g. 12A or your local street/house number"
+                hint="Enter the street or house number where the issue is located. Keep the area and landmark details below to help officers find the location."
+                error={methods.formState.errors.streetNumber?.message}
+                {...methods.register('streetNumber')}
               />
 
               <div className="pt-2">
@@ -396,13 +580,13 @@ export function ReportSubmitPage() {
               </div>
             </Card>
 
-            {/* Step 3: Optional Citizen Contact */}
+            {/* Step 3: Citizen Contact */}
             <Card padding="lg">
               <div className="flex items-center justify-between mb-2">
                 <SectionTitle
                   eyebrow="Step 3"
-                  title="Citizen Contact (Optional)"
-                  description="Add contact information if you wish to receive clarifications from inspecting officers."
+                  title="Citizen Contact"
+                  description="An email address is required so we can send your confirmation and tracking code."
                   className="mb-0"
                 />
               </div>
@@ -410,7 +594,8 @@ export function ReportSubmitPage() {
               <div className="rounded-xl bg-sand-100/70 border border-sand-200/90 p-3 mb-4 flex items-center gap-2 text-xs text-sand-700">
                 <Lock className="w-4 h-4 text-river-600 flex-shrink-0" />
                 <span>
-                  <strong>Privacy Protected:</strong> Your phone and email are never shown on the public tracking page.
+                  <strong>Privacy Protected:</strong> Your name and phone are optional. Your email is used only to
+                  send your confirmation and is never shown on the public tracking page.
                 </span>
               </div>
 
@@ -432,8 +617,10 @@ export function ReportSubmitPage() {
 
               <Input
                 label="Email Address"
-                placeholder="Optional — e.g. citizen@example.gm"
+                required
+                placeholder="e.g. citizen@example.gm"
                 type="email"
+                hint="We will send your confirmation and tracking code to this address."
                 error={methods.formState.errors.contactEmail?.message}
                 {...methods.register('contactEmail')}
               />

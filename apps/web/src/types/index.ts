@@ -28,6 +28,10 @@ export interface PublicReport {
   category: ReportCategory
   categoryLabel: string
   location: string
+  streetNumber: string
+  lga?: string | null
+  lgaName?: string | null
+  locationId?: string | null
   latitude: number | null
   longitude: number | null
   status: ReportStatus
@@ -43,12 +47,36 @@ export interface OfficerReport {
   category: ReportCategory
   categoryLabel: string
   location: string
+  streetNumber: string
+  lga?: string | null
+  lgaName?: string | null
+  locationId?: string | null
   status: ReportStatus
   statusLabel: string
   createdAt: string
   updatedAt: string
   latestNote: string | null
   latestUpdatedAt: string | null
+}
+
+export interface LocalGovernmentArea {
+  id: string
+  code: string
+  name: string
+  councilType: 'City Council' | 'Municipal Council' | 'Area Council'
+  administrativeRegion: string
+}
+
+export type LocationType = 'town' | 'village' | 'neighborhood' | 'street' | 'landmark'
+
+export interface LocationItem {
+  id: string
+  name: string
+  type: LocationType
+  lgaId: string
+  latitude?: number
+  longitude?: number
+  source: 'GeoNames' | 'OpenStreetMap'
 }
 
 export interface Officer {

@@ -79,8 +79,8 @@ const STEPS = [
   },
   {
     number: '02',
-    title: 'Receive your unique tracking code',
-    description: 'Get an official reference code (e.g. CTG-2026-ABC123). Save it or copy it with one click.',
+    title: 'Receive your tracking code',
+    description: 'Get an official reference code (e.g. CTG-2026-ABC123) and a confirmation email with your tracking details. Save both for future reference.',
     icon: ShieldCheck,
   },
   {
@@ -113,12 +113,12 @@ export function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-sand-50 flex flex-col font-sans">
+    <div className="min-h-screen app-background flex flex-col font-sans">
       <Navbar />
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="relative overflow-hidden bg-gradient-to-b from-river-950 via-river-900 to-river-900 text-white pt-12 pb-20 px-4 sm:px-6 lg:px-8 border-b border-river-800">
+        <section className="relative overflow-hidden bg-gradient-to-b from-river-950/70 via-river-900/60 to-river-900/70 text-white pt-12 pb-20 px-4 sm:px-6 lg:px-8 border-b border-river-800/40">
           {/* Subtle civic watermark pattern */}
           <div
             className="absolute inset-0 opacity-5 pointer-events-none"
@@ -210,14 +210,14 @@ export function HomePage() {
         {/* Categories Section */}
         <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-river-600 block mb-1">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-sand-200/60 shadow-subtle">
+              <span className="text-xs font-bold uppercase tracking-wider text-river-700 block mb-1">
                 Public Infrastructure
               </span>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-sand-900 tracking-tight">
                 What issues can you report?
               </h2>
-              <p className="text-sm text-sand-600 mt-1 max-w-xl">
+              <p className="text-sm text-sand-700 mt-1 max-w-xl">
                 Choose a category below to submit a localized report directly into the public works tracking queue.
               </p>
             </div>
@@ -236,7 +236,7 @@ export function HomePage() {
                 <Link
                   key={cat.id}
                   to={`/report?category=${cat.id}`}
-                  className="group relative flex flex-col justify-between p-6 rounded-2xl bg-white border border-sand-200 shadow-card hover:shadow-hover hover:border-river-300 hover:-translate-y-0.5 transition-all duration-200"
+                  className="group relative flex flex-col justify-between p-6 rounded-2xl bg-white/85 border border-sand-200/60 shadow-card hover:shadow-hover hover:border-river-300 hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-4">
@@ -267,16 +267,16 @@ export function HomePage() {
         </section>
 
         {/* How It Works Section */}
-        <section className="py-16 bg-sand-100/60 border-y border-sand-200 px-4 sm:px-6 lg:px-8">
+        <section className="py-16 bg-sand-100/25 border-y border-sand-200/40 px-4 sm:px-6 lg:px-8">
           <div className="max-w-5xl mx-auto">
-            <div className="text-center max-w-2xl mx-auto mb-12">
-              <span className="text-xs font-bold uppercase tracking-wider text-river-600 block mb-1">
+            <div className="text-center max-w-2xl mx-auto mb-12 bg-white/80 backdrop-blur-sm rounded-2xl p-6 sm:p-8 border border-sand-200/60 shadow-subtle">
+              <span className="text-xs font-bold uppercase tracking-wider text-river-700 block mb-1">
                 Civic Workflow
               </span>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-sand-900 tracking-tight">
                 Simple, transparent 3-step reporting
               </h2>
-              <p className="text-sm text-sand-600 mt-2">
+              <p className="text-sm text-sand-700 mt-2">
                 Designed for accessibility on any mobile browser across urban and rural communities.
               </p>
             </div>
@@ -310,7 +310,7 @@ export function HomePage() {
 
         {/* Municipal Coverage Notice */}
         <section className="py-14 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-          <div className="rounded-2xl border border-sand-200 bg-white p-6 sm:p-8 shadow-card">
+          <div className="rounded-2xl border border-sand-200/60 bg-white/85 p-6 sm:p-8 shadow-card backdrop-blur-sm">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div>
                 <div className="flex items-center gap-2 mb-2">
@@ -358,14 +358,12 @@ export function HomePage() {
       </main>
 
       {/* Authoritative Civic Footer */}
-      <footer className="border-t border-sand-200 bg-sand-950 text-sand-300 py-12 px-4 sm:px-6 lg:px-8">
+      <footer className="border-t border-sand-200/40 bg-sand-950/90 text-sand-300 py-12 px-4 sm:px-6 lg:px-8 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto grid sm:grid-cols-2 md:grid-cols-4 gap-8 mb-10">
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 rounded-lg bg-river-800 flex items-center justify-center text-canopy-400">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                </svg>
+              <div className="w-7 h-7 rounded-lg bg-river-800 flex items-center justify-center text-canopy-400 overflow-hidden">
+                <img src="/assets/logo.jpeg" alt="CivicTrack Gambia logo" className="w-full h-full object-cover" />
               </div>
               <span className="font-extrabold text-white tracking-tight">CivicTrack Gambia</span>
             </div>
@@ -425,7 +423,7 @@ export function HomePage() {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto pt-6 border-t border-sand-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-sand-500">
+        <div className="max-w-7xl mx-auto pt-6 border-t border-sand-800 bg-sand-950/95 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-sand-400 backdrop-blur-sm">
           <span>CivicTrack Gambia — Open Public Technology Initiative</span>
           <span>Prototype v1.0 • Built with React, Tailwind & PostgreSQL</span>
         </div>

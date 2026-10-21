@@ -37,10 +37,8 @@ export function Navbar({ isOfficer = false }: NavbarProps) {
         <div className="flex h-16 items-center justify-between gap-4">
           {/* Logo & Civic Emblem */}
           <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-9 h-9 rounded-xl bg-river-900 flex items-center justify-center text-white shadow-sm group-hover:bg-river-800 transition-colors">
-              <svg className="w-5 h-5 text-canopy-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-              </svg>
+            <div className="w-9 h-9 rounded-xl bg-river-900 flex items-center justify-center text-white shadow-sm group-hover:bg-river-800 transition-colors overflow-hidden">
+              <img src="/assets/logo.jpeg" alt="CivicTrack Gambia logo" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200" />
             </div>
             <div>
               <div className="flex items-center gap-1.5 leading-none">

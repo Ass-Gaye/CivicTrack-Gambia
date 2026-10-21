@@ -3,6 +3,7 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library'
 import { Prisma, ReportCategory, ReportStatus } from '@prisma/client'
 import { prisma } from '../lib/prisma'
 import { CATEGORY_LABELS, STATUS_LABELS } from '../schemas/report'
+import { getLgaById, getLocationById, validateLocation } from './location.service'
 
 export type ValidCategory = ReportCategory
 export type ValidStatus = ReportStatus
@@ -24,6 +25,10 @@ export interface PublicReport {
   category: string
   categoryLabel: string
   location: string
+  streetNumber: string
+  lga: string | null
+  lgaName: string | null
+  locationId: string | null
   latitude: number | null
   longitude: number | null
   status: string
@@ -42,14 +47,31 @@ export async function createReport(data: {
   title: string
   description: string
   category: ValidCategory
-  location: string
+  location?: string
+  streetNumber: string
+  lga?: string | null
+  locationId?: string | null
+  customLocation?: string | null
   latitude?: number | null
   longitude?: number | null
   contactName?: string | null
   contactPhone?: string | null
-  contactEmail?: string | null
+  contactEmail: string
 }) {
   let lastError: Error | null = null
+
+  // Resolve location information
+  const val = validateLocation({
+    lga: data.lga,
+    locationId: data.locationId,
+    location: data.location,
+    customLocation: data.customLocation,
+  })
+
+  const resolvedLocation = val.resolvedName || data.location || ''
+  const resolvedLga = val.lga?.id ?? (data.lga ? data.lga.trim().toLowerCase() : null)
+  const resolvedLat = data.latitude ?? val.locationItem?.latitude ?? null
+  const resolvedLon = data.longitude ?? val.locationItem?.longitude ?? null
 
   for (let attempt = 0; attempt < 5; attempt++) {
     const referenceCode = generateReferenceCode()
@@ -60,14 +82,17 @@ export async function createReport(data: {
           title: data.title,
           description: data.description,
           category: data.category,
-          location: data.location,
-          latitude: data.latitude ?? null,
-          longitude: data.longitude ?? null,
+          location: resolvedLocation,
+          streetNumber: data.streetNumber,
+          lga: resolvedLga,
+          locationId: data.locationId ?? null,
+          latitude: resolvedLat,
+          longitude: resolvedLon,
           contactName: data.contactName ?? null,
           contactPhone: data.contactPhone ?? null,
           contactEmail: data.contactEmail ?? null,
         },
-        select: { referenceCode: true, status: true, createdAt: true },
+        select: { referenceCode: true, status: true, createdAt: true, location: true, lga: true },
       })
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -80,6 +105,21 @@ export async function createReport(data: {
   throw lastError ?? new Error('Failed to create report after multiple attempts')
 }
 
+/**
+ * Returns the citizen's contact email for a report, identified by reference code.
+ * Internal use only: the email is never included in public tracking responses.
+ * Returns null when the report does not exist or has no email on file.
+ */
+export async function getContactEmailByReference(
+  referenceCode: string
+): Promise<string | null> {
+  const report = await prisma.report.findUnique({
+    where: { referenceCode },
+    select: { contactEmail: true },
+  })
+  return report?.contactEmail ?? null
+}
+
 export async function getPublicReportByReference(referenceCode: string): Promise<PublicReport | null> {
   const report = await prisma.report.findUnique({
     where: { referenceCode },
@@ -88,6 +128,9 @@ export async function getPublicReportByReference(referenceCode: string): Promise
       title: true,
       category: true,
       location: true,
+      streetNumber: true,
+      lga: true,
+      locationId: true,
       latitude: true,
       longitude: true,
       status: true,
@@ -106,12 +149,18 @@ export async function getPublicReportByReference(referenceCode: string): Promise
 
   if (!report) return null
 
+  const lgaInfo = report.lga ? getLgaById(report.lga) : null
+
   return {
     referenceCode: report.referenceCode,
     title: report.title,
     category: report.category,
     categoryLabel: CATEGORY_LABELS[report.category as keyof typeof CATEGORY_LABELS] ?? report.category,
     location: report.location,
+    streetNumber: report.streetNumber,
+    lga: report.lga,
+    lgaName: lgaInfo?.name ?? report.lga,
+    locationId: report.locationId,
     latitude: report.latitude,
     longitude: report.longitude,
     status: report.status,
@@ -134,6 +183,10 @@ export interface OfficerReport {
   category: string
   categoryLabel: string
   location: string
+  streetNumber: string
+  lga: string | null
+  lgaName: string | null
+  locationId: string | null
   status: string
   statusLabel: string
   createdAt: string
@@ -155,12 +208,14 @@ export async function getOfficerReports({
   search,
   category,
   status,
+  lga,
 }: {
   page?: number
   pageSize?: number
   search?: string | null
   category?: string | null
   status?: string | null
+  lga?: string | null
 }): Promise<OfficerReportsResult> {
   const skip = (Math.max(1, page) - 1) * Math.max(1, Math.min(pageSize, 100))
 
@@ -180,6 +235,9 @@ export async function getOfficerReports({
   if (status && validStatuses.includes(status as ValidStatus)) {
     where.status = status as ValidStatus
   }
+  if (lga) {
+    where.lga = lga.trim().toLowerCase()
+  }
 
   const [reports, total] = await prisma.$transaction([
     prisma.report.findMany({
@@ -190,6 +248,9 @@ export async function getOfficerReports({
         title: true,
         category: true,
         location: true,
+        streetNumber: true,
+        lga: true,
+        locationId: true,
         status: true,
         createdAt: true,
         updatedAt: true,
@@ -207,20 +268,27 @@ export async function getOfficerReports({
   ])
 
   return {
-    reports: reports.map((r) => ({
-      id: r.id,
-      referenceCode: r.referenceCode,
-      title: r.title,
-      category: r.category,
-      categoryLabel: CATEGORY_LABELS[r.category as keyof typeof CATEGORY_LABELS] ?? r.category,
-      location: r.location,
-      status: r.status,
-      statusLabel: STATUS_LABELS[r.status as keyof typeof STATUS_LABELS] ?? r.status,
-      createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
-      latestNote: r.updates[0]?.publicNote ?? null,
-      latestUpdatedAt: r.updates[0]?.createdAt.toISOString() ?? null,
-    })),
+    reports: reports.map((r) => {
+      const lgaInfo = r.lga ? getLgaById(r.lga) : null
+      return {
+        id: r.id,
+        referenceCode: r.referenceCode,
+        title: r.title,
+        category: r.category,
+        categoryLabel: CATEGORY_LABELS[r.category as keyof typeof CATEGORY_LABELS] ?? r.category,
+        location: r.location,
+        streetNumber: r.streetNumber,
+        lga: r.lga,
+        lgaName: lgaInfo?.name ?? r.lga,
+        locationId: r.locationId,
+        status: r.status,
+        statusLabel: STATUS_LABELS[r.status as keyof typeof STATUS_LABELS] ?? r.status,
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+        latestNote: r.updates[0]?.publicNote ?? null,
+        latestUpdatedAt: r.updates[0]?.createdAt.toISOString() ?? null,
+      }
+    }),
     total,
     page: Math.max(1, page),
     pageSize: Math.min(pageSize, 100),
@@ -237,6 +305,9 @@ export async function getOfficerReportDetail(id: string) {
       description: true,
       category: true,
       location: true,
+      streetNumber: true,
+      lga: true,
+      locationId: true,
       latitude: true,
       longitude: true,
       contactName: true,
@@ -261,8 +332,11 @@ export async function getOfficerReportDetail(id: string) {
 
   if (!report) return null
 
+  const lgaInfo = report.lga ? getLgaById(report.lga) : null
+
   return {
     ...report,
+    lgaName: lgaInfo?.name ?? report.lga,
     categoryLabel: CATEGORY_LABELS[report.category as keyof typeof CATEGORY_LABELS] ?? report.category,
     statusLabel: STATUS_LABELS[report.status as keyof typeof STATUS_LABELS] ?? report.status,
   }

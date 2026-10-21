@@ -154,16 +154,24 @@ export function OfficerReportDetailPage() {
           </div>
 
           {/* Key Attributes */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-4 border-b border-sand-200 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 py-4 border-b border-sand-200 text-xs">
             <div className="p-3 rounded-xl bg-sand-50 border border-sand-200/80">
               <span className="text-sand-500 font-medium block mb-1">Category</span>
               <span className="font-bold text-sand-900">{report.categoryLabel}</span>
             </div>
             <div className="p-3 rounded-xl bg-sand-50 border border-sand-200/80">
+              <span className="text-sand-500 font-medium block mb-1">Region / LGA</span>
+              <span className="font-bold text-sand-900 truncate block" title={report.lgaName || 'Not specified'}>
+                {report.lgaName || 'Not specified'}
+              </span>
+            </div>
+            <div className="p-3 rounded-xl bg-sand-50 border border-sand-200/80">
               <span className="text-sand-500 font-medium block mb-1">Location</span>
-              <span className="font-bold text-sand-900 flex items-center gap-1 truncate">
+              <span className="font-bold text-sand-900 flex items-center gap-1 truncate" title={report.location}>
                 <MapPin className="w-3.5 h-3.5 text-ochre-600 flex-shrink-0" />
-                <span className="truncate">{report.location}</span>
+                <span className="truncate">
+                  {report.streetNumber ? `${report.streetNumber}, ` : ''}{report.location}
+                </span>
               </span>
             </div>
             <div className="p-3 rounded-xl bg-sand-50 border border-sand-200/80">

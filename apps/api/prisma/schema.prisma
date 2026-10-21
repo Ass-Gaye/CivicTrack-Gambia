@@ -50,6 +50,9 @@ model Report {
   description   String
   category      ReportCategory
   location      String
+  streetNumber  String
+  lga           String?
+  locationId    String?
   latitude      Float?
   longitude     Float?
   contactName   String?
@@ -63,6 +66,7 @@ model Report {
   @@index([referenceCode])
   @@index([status])
   @@index([category])
+  @@index([lga])
   @@index([createdAt])
 }
 

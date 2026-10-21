@@ -25,7 +25,10 @@ export function ReportCard({ report }: ReportCardProps) {
 
           <div className="flex items-center gap-1.5 text-xs text-sand-600 mb-4">
             <MapPin className="w-3.5 h-3.5 text-sand-400 flex-shrink-0" />
-            <span className="truncate">{report.location}</span>
+            <span className="truncate">
+              {report.streetNumber ? `${report.streetNumber}, ` : ''}{report.location}
+              {report.lgaName ? ` • ${report.lgaName}` : ''}
+            </span>
           </div>
         </div>
 

@@ -39,6 +39,18 @@ const CATEGORY_FILTERS = [
   { value: 'OTHER', label: 'Other Issue' },
 ]
 
+const LGA_FILTERS = [
+  { value: '', label: 'All LGAs' },
+  { value: 'banjul', label: 'Banjul City Council' },
+  { value: 'kanifing', label: 'Kanifing Municipal Council' },
+  { value: 'brikama', label: 'Brikama Area Council' },
+  { value: 'mansakonko', label: 'Mansakonko Area Council' },
+  { value: 'kerewan', label: 'Kerewan Area Council' },
+  { value: 'kuntaur', label: 'Kuntaur Area Council' },
+  { value: 'janjanbureh', label: 'Janjanbureh Area Council' },
+  { value: 'basse', label: 'Basse Area Council' },
+]
+
 export function OfficerDashboardPage() {
   const { user, signOut } = useAuth()
   const { getDashboardCounts, getOfficerReports, loading, error } = useReports()
@@ -47,6 +59,7 @@ export function OfficerDashboardPage() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const [status, setStatus] = useState('')
+  const [lga, setLga] = useState('')
   const [page, setPage] = useState(1)
 
   useEffect(() => {
@@ -54,10 +67,10 @@ export function OfficerDashboardPage() {
   }, [getDashboardCounts])
 
   useEffect(() => {
-    getOfficerReports({ page, pageSize: 9, search, category, status })
+    getOfficerReports({ page, pageSize: 9, search, category, status, lga })
       .then(setReports)
       .catch(() => {})
-  }, [getOfficerReports, page, search, category, status])
+  }, [getOfficerReports, page, search, category, status, lga])
 
   const isInitialLoading = loading && !counts
 
@@ -204,6 +217,22 @@ export function OfficerDashboardPage() {
                     {CATEGORY_FILTERS.map((c) => (
                       <option key={c.value} value={c.value}>
                         {c.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* LGA filter */}
+                  <select
+                    className="rounded-xl border border-sand-300 bg-white px-3 py-2 text-xs text-sand-900 focus:outline-none focus:ring-2 focus:ring-river-500 cursor-pointer"
+                    value={lga}
+                    onChange={(e) => {
+                      setLga(e.target.value)
+                      setPage(1)
+                    }}
+                  >
+                    {LGA_FILTERS.map((l) => (
+                      <option key={l.value} value={l.value}>
+                        {l.label}
                       </option>
                     ))}
                   </select>

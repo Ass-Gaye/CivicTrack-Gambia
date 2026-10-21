@@ -12,11 +12,11 @@
     "dev:api": "cd apps/api && npm run dev",
     "dev:web": "npm run dev",
     "build:api": "cd apps/api && npm run build",
-    "build:web": "npm run build",
+    "build:web": "npm --prefix apps/web run build",
     "start:api": "cd apps/api && npm start",
     "test": "cd apps/api && npm test",
     "typecheck:api": "cd apps/api && npx tsc --noEmit",
-    "typecheck:web": "npx tsc --noEmit"
+    "typecheck:web": "npm --prefix apps/web run typecheck"
   },
   "workspaces": [
     "apps/*"

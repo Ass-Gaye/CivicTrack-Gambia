@@ -163,9 +163,18 @@ export function TrackResultPage() {
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-sand-900 tracking-tight mb-2">
                   {report.title}
                 </h1>
-                <div className="flex items-center gap-1.5 text-sm text-sand-600">
-                  <MapPin className="w-4 h-4 text-ochre-600 flex-shrink-0" />
-                  <span>{report.location}</span>
+                <div className="flex flex-wrap items-center gap-2 text-sm text-sand-600">
+                  <div className="flex items-center gap-1.5 text-sand-900 font-medium">
+                    <MapPin className="w-4 h-4 text-ochre-600 flex-shrink-0" />
+                    <span>
+                      {report.streetNumber ? `${report.streetNumber}, ` : ''}{report.location}
+                    </span>
+                  </div>
+                  {report.lgaName && (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-river-50 text-river-800 border border-river-200">
+                      {report.lgaName}
+                    </span>
+                  )}
                 </div>
               </div>
 

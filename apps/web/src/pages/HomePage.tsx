@@ -113,12 +113,12 @@ export function HomePage() {
   }
 
   return (
-    <div className="min-h-screen app-background flex flex-col font-sans">
+    <div className="min-h-screen bg-sand-50 flex flex-col font-sans">
       <Navbar />
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="relative overflow-hidden bg-gradient-to-b from-river-950/70 via-river-900/60 to-river-900/70 text-white pt-12 pb-20 px-4 sm:px-6 lg:px-8 border-b border-river-800/40">
+        <section className="relative overflow-hidden app-background text-white pt-12 pb-20 px-4 sm:px-6 lg:px-8 border-b border-river-800/40">
           {/* Subtle civic watermark pattern */}
           <div
             className="absolute inset-0 opacity-5 pointer-events-none"

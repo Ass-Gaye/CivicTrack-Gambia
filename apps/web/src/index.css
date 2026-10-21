@@ -74,13 +74,13 @@
     animation: spin 1s linear infinite;
   }
 
-  /* CivicTrack Gambia hero background image with subtle dark overlay */
+  /* CivicTrack Gambia hero background image with dark overlay */
   .app-background {
     background-image: linear-gradient(
         to bottom,
-        rgba(8, 22, 38, 0.45) 0%,
-        rgba(13, 37, 62, 0.35) 50%,
-        rgba(8, 22, 38, 0.45) 100%
+        rgba(8, 22, 38, 0.65) 0%,
+        rgba(13, 37, 62, 0.55) 50%,
+        rgba(8, 22, 38, 0.65) 100%
       ),
       url('/assets/background.jpeg');
     background-size: cover;
